@@ -303,6 +303,32 @@ function processCommand(command){
         return;
     }
 
+    // Farewell commands
+    else if(command.includes("bye") || command.includes("goodbye") || command.includes("see you later") || command.includes("see you") || command.includes("catch you later") || command.includes("farewell") || command.includes("adios") || command.includes("take care")){
+        const farewellResponses = [
+            "bye boss",
+            "have a great day",
+            "have a good day",
+            "see you later",
+            "catch you later",
+            "goodbye boss",
+            "have a wonderful day",
+            "take care boss"
+        ];
+        const randomFarewell = farewellResponses[Math.floor(Math.random() * farewellResponses.length)];
+        speak(randomFarewell);
+        output.innerHTML = "👋 " + randomFarewell;
+        isListening = false;
+        setTimeout(()=>{
+            try{
+                recognition.stop();
+            } catch(e){
+                console.log("Stop error:", e.message);
+            }
+        }, 1000);
+        return;
+    }
+
     // Stop listening command
     else if(command.includes("stop") || command.includes("exit") || command.includes("quit")){
         speak("Stopping voice assistant");
