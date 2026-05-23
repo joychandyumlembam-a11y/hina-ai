@@ -11,6 +11,13 @@ html, body {
     overflow: hidden;
 }
 
+@media (max-width: 768px) {
+    html, body {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+}
+
 body {
     background: linear-gradient(135deg, #0a0f1f 0%, #0d1b2a 50%, #0a0f1f 100%);
     display: flex;
@@ -20,6 +27,15 @@ body {
     perspective: 1500px;
     position: relative;
     overflow: hidden;
+    touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+    body {
+        justify-content: flex-start;
+        height: auto;
+        overflow: visible;
+    }
 }
 
 /* Animated background */
@@ -363,6 +379,31 @@ button:disabled {
     cursor: not-allowed;
 }
 
+#commandInput {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border: 2px solid #00ffff;
+    border-radius: 0;
+    background: rgba(0, 255, 255, 0.1);
+    color: #00ffff;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.1), 0 0 20px rgba(0, 255, 255, 0.15);
+}
+
+#commandInput:focus {
+    outline: none;
+    border-color: rgba(0, 255, 255, 0.8);
+    background: rgba(0, 255, 255, 0.15);
+    box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.2), 0 0 40px rgba(0, 255, 255, 0.25);
+}
+
+#commandInput::placeholder {
+    color: rgba(0, 255, 255, 0.5);
+}
+
 /* Footer */
 .footer {
     width: 100%;
@@ -400,6 +441,19 @@ button:disabled {
     }
 }
 
+/* Tablet Responsive */
+@media (max-width: 1024px) {
+    .main-container {
+        gap: 30px;
+        padding: 30px 20px;
+    }
+    
+    .avatar-card {
+        width: 280px;
+        height: 340px;
+    }
+}
+
 /* Clap Detection Animation */
 .output.clap-detected {
     animation: clapPulse 0.5s ease-out;
@@ -424,24 +478,206 @@ button:disabled {
     }
 }
 
+/* Mobile Responsive - Minimized Layout */
 @media (max-width: 768px) {
+    /* Minimize header */
+    .header {
+        padding: 20px 0;
+        margin-top: 15px;
+    }
+    
     .header h2 {
         font-size: 24px;
+        letter-spacing: 2px;
+    }
+    
+    /* Stack main container vertically */
+    .main-container {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px 15px;
+        width: 100%;
+        height: auto;
+    }
+    
+    /* Minimize avatar card */
+    .hina-section {
+        gap: 15px;
+    }
+    
+    .avatar-card {
+        width: 240px;
+        height: 280px;
+        padding: 25px;
+        gap: 15px;
     }
     
     .avatar {
-        width: 120px;
-        height: 120px;
-        font-size: 60px;
+        width: 100px;
+        height: 100px;
+        font-size: 50px;
     }
     
     .avatar-name {
-        font-size: 36px;
+        font-size: 28px;
+        letter-spacing: 1px;
+    }
+    
+    .avatar-status {
+        font-size: 12px;
+    }
+    
+    .wave {
+        height: 50px;
+        gap: 6px;
+    }
+    
+    .wave span {
+        width: 6px;
+        border-radius: 0;
+    }
+    
+    /* Minimize info section */
+    .info-section {
+        max-width: 100%;
+        width: 100%;
+        gap: 15px;
+    }
+    
+    .output {
+        padding: 20px;
+        min-height: 100px;
+        font-size: 14px;
+        border-radius: 0;
+    }
+    
+    .voice-support-message {
+        padding: 12px;
+        font-size: 12px;
+        margin: 0 !important;
+    }
+    
+    /* Stack buttons vertically */
+    .button-container {
+        flex-direction: column;
+        gap: 12px;
     }
     
     button {
-        padding: 14px 35px;
-        font-size: 15px;
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 13px;
+        border-radius: 0;
+    }
+    
+    #commandInput {
+        font-size: 13px;
+        padding: 10px !important;
+    }
+    
+    /* Minimize footer */
+    .footer {
+        padding: 15px;
+        font-size: 11px;
+    }
+}
+
+/* Extra Small Phones - Ultra Minimized */
+@media (max-width: 480px) {
+    body {
+        justify-content: flex-start;
+    }
+    
+    .header {
+        padding: 15px 0;
+        margin-top: 10px;
+    }
+    
+    .header h2 {
+        font-size: 20px;
+        letter-spacing: 1px;
+    }
+    
+    .main-container {
+        gap: 15px;
+        padding: 15px 10px;
+    }
+    
+    /* Hide animations on small screens for performance */
+    .hina-section {
+        animation: none;
+    }
+    
+    .avatar-card {
+        width: 100%;
+        max-width: 220px;
+        height: 260px;
+        padding: 20px;
+        gap: 12px;
+        animation: none;
+    }
+    
+    .avatar-card:hover {
+        transform: none;
+    }
+    
+    .avatar {
+        width: 90px;
+        height: 90px;
+        font-size: 45px;
+        animation: none;
+    }
+    
+    .avatar-name {
+        font-size: 24px;
+    }
+    
+    .avatar-status {
+        font-size: 11px;
+    }
+    
+    .wave {
+        height: 40px;
+        gap: 5px;
+    }
+    
+    .wave span {
+        width: 5px;
+    }
+    
+    .info-section {
+        gap: 12px;
+    }
+    
+    .output {
+        padding: 15px;
+        min-height: 90px;
+        font-size: 13px;
+        animation: none;
+    }
+    
+    .voice-support-message {
+        padding: 10px;
+        font-size: 11px;
+    }
+    
+    button {
+        padding: 10px 15px;
+        font-size: 12px;
+        animation: none;
+    }
+    
+    button:hover {
+        transform: none;
+    }
+    
+    #commandInput {
+        font-size: 12px;
+    }
+    
+    .footer {
+        padding: 12px;
+        font-size: 10px;
     }
 }
 
@@ -484,5 +720,22 @@ button:disabled {
     to {
         opacity: 0;
         transform: translateX(-50%) translateY(30px);
+    }
+}
+
+/* Canvas optimization for mobile */
+@media (max-width: 768px) {
+    #scene {
+        width: 300px !important;
+        height: 300px !important;
+        opacity: 0.7;
+    }
+}
+
+@media (max-width: 480px) {
+    #scene {
+        width: 200px !important;
+        height: 200px !important;
+        opacity: 0.5;
     }
 }
