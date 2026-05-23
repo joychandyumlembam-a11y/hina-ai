@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hina - AI Voice Assistant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.min.js"></script>
+
+<body>
+    <div class="background-animation"></div>
+    
+    <div class="header">
+        <h2>Welcome to Hina</h2>
+    </div>
+
+    <div class="main-container">
+        <!-- Hina Avatar Section -->
+        <div class="hina-section">
+            <div class="avatar-card">
+                <div class="avatar">👩</div>
+                <div class="avatar-name">Hina</div>
+                <div class="avatar-status">Ready to assist</div>
+                <div class="wave">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="info-section">
+            <div class="output" id="output">
+                🎧 Ready to listen to your commands...
+            </div>
+            <div class="voice-support-message" id="voiceSupportMessage"></div>
+
+            <div class="button-container">
+                <button onclick="startListening()" id="listenBtn">🎤 Start Listening (Press S)</button>
+                <button onclick="stopListening()" id="stopBtn">⏹️ Stop (Press Esc)</button>
+                <input type="text" id="commandInput" placeholder="Type a command here..." style="width: 100%; padding: 10px; margin-top: 10px; border: 2px solid #00ffff; border-radius: 5px; background: rgba(0, 255, 255, 0.1); color: #00ffff; font-size: 14px;">
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Hina - AI Voice Assistant | Full HD Display | Female Voice | 2026</p>
+    </div>
+
+<canvas id="scene" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; width: 400px; height: 400px; pointer-events: none;" aria-hidden="true"></canvas>
+
+<script>
+
+// Load voices when available
+window.speechSynthesis.onvoiceschanged = ()=>{
+    window.speechSynthesis.getVoices();
+};
+
+const output = document.getElementById("output");
+
+let isSpeaking = false;
+
+function speak(text){
+    if(!text || text.trim().length === 0) return;
+    
+    // Pause recognition while speaking to avoid capturing our own speech
+    let wasListening = isListening;
+    if(typeof recognition !== 'undefined' && isListening){
+        try{
+            recognition.abort();
+        }catch(e){
+            console.log('Could not abort recognition before speaking', e);
+        }
+    }
+    
+    const speech = new SpeechSynthesisUtterance(text);
+    speech.lang = "en-US";
+    speech.volume = 1;
+    speech.rate = 1.0;  // Normal speed for clarity
+    speech.pitch = 1.8;  // Slightly higher pitch for naturalness
+    
+    let voices = window.speechSynthesis.getVoices();
+    let femaleVoice = voices.find(v => v.name.toLowerCase().includes('zira')) ||
+                      voices.find(v => v.name.toLowerCase().includes('female')) ||
+                      voices.find(v => v.name.toLowerCase().includes('woman')) ||
+                      voices.find(v => v.name.toLowerCase().includes('victoria')) ||
+                      voices.find(v => v.name.toLowerCase().includes('anna')) ||
+                      (voices.length > 1 ? voices[1] : voices[0]);
+    if(femaleVoice) speech.voice = femaleVoice;
+    
+    isSpeaking = true;
+    
+    speech.onend = ()=>{
+        isSpeaking = false;
+        // Immediately restart recognition if it was active before speaking
+        if(wasListening && typeof recognition !== 'undefined' && isListening){
+            try{ 
+                recognition.start(); 
+            }catch(e){ 
+                console.log('Restart recognition failed', e); 
+                // Try again after minimal delay
+                setTimeout(()=>{ 
+                    try { if(isListening) recognition.start(); } catch(e2) { console.log('Second restart attempt failed', e2); }
+                }, 20);
+            }
+        }
+    };
+    
+    speech.onerror = (e)=>{ 
+        isSpeaking = false; 
+        console.error("Speech error:", e.error); 
+        // Attempt to restart recognition even on error
+        if(wasListening && typeof recognition !== 'undefined' && isListening){
+            try { recognition.start(); } catch(e2) { console.log('Error recovery restart failed', e2); }
+        }
+    };
+    
+    try {
+        // Start speaking immediately
+        window.speechSynthesis.speak(speech);
+    } catch(e) {
+        isSpeaking = false;
+        console.error("Speak error:", e);
+    }
+}
+
+// Speak text with a specific language code (if available)
+function speakText(text, langCode){
+    if(!text || text.trim().length === 0) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = langCode || 'en-US';
+    utter.volume = 1;
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    let voices = window.speechSynthesis.getVoices();
+    // Try to pick a voice that matches the language code
+    let voice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith((utter.lang||'').toLowerCase())) ||
+                voices.find(v => v.name.toLowerCase().includes('female')) ||
+                voices[0];
+    if(voice) utter.voice = voice;
+    try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(utter); }catch(e){ console.error('speakText error', e); }
+}
+
+// Translate text using LibreTranslate (fallback to Google Translate if it fails)
+async function translateAndSpeak(text, targetLang){
+    if(!text || text.trim().length === 0) return;
+    const languageMap = {
+        'english': 'en','spanish': 'es','french': 'fr','german': 'de','italian': 'it','portuguese': 'pt',
+        'russian':'ru','japanese':'ja','chinese':'zh','korean':'ko','arabic':'ar','hindi':'hi',
+        'turkish':'tr','dutch':'nl','greek':'el','polish':'pl','vietnamese':'vi','thai':'th',
+        'czech':'cs','swedish':'sv','norwegian':'no','finnish':'fi','danish':'da','hebrew':'he',
+        'urdo':'ur','urdu':'ur','malay':'ms','indonesian':'id','tagalog':'tl','afrikaans':'af',
+        'hungarian':'hu','romanian':'ro','slovenian':'sl','bulgarian':'bg','serbian':'sr','catalan':'ca',
+        'basque':'eu'
+    };
+    const tl = (languageMap[targetLang.toLowerCase()] || targetLang.toLowerCase());
+    output.innerHTML = `🌐 Translating to ${targetLang}: ${text}`;
+
+    try{
+        const res = await fetch('https://libretranslate.de/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: text, source: 'auto', target: tl, format: 'text' })
+        });
+        if(!res.ok) throw new Error('Translation API error');
+        const data = await res.json();
+        const translated = data.translatedText || '';
+        output.innerHTML = `🌐 ${targetLang} translation: ${translated}`;
+        // Speak the translated text in the target language if possible
+        speakText(translated, tl);
+    }catch(e){
+        console.warn('LibreTranslate failed, falling back to Google Translate', e);
+        // Fallback: open Google Translate page with prefilled text
+        openUrl('https://translate.google.com/?sl=auto&tl=' + encodeURIComponent(tl) + '&text=' + encodeURIComponent(text));
+        speak('Opened Google Translate for you');
+    }
+}
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+let speechRecognitionSupported = !!SpeechRecognition;
+const voiceSupportMessage = document.getElementById('voiceSupportMessage');
+
+if(!speechRecognitionSupported) {
+    console.error("Speech Recognition not supported");
+    output.innerHTML = "❌ Speech Recognition not supported in this browser.";
+    if(voiceSupportMessage) {
+        voiceSupportMessage.innerHTML = "Voice commands require Chrome/Edge on HTTPS or localhost and microphone permission. If you opened this page via file://, use a local server instead.";
+    }
+} else {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.lang = "en-US";
+}
+
+let isListening = false;
+let lastExecutedCommand = "";
+let lastProcessedResultIndex = -1;
+let lastCommandTimestamp = 0;
+const COMMAND_COOLDOWN = 2000; // ms
+
+function openUrl(url){
+    try{
+        // reuse same named tab to avoid multiple duplicates
+        window.open(url, 'hina_tab');
+    }catch(e){
+        window.open(url, '_blank');
+    }
+}
+
+function getTimeGreeting(){
+    const hour = new Date().getHours();
+    if(hour >= 5 && hour < 12) {
+        return "Good morning boss";
+    } else if(hour >= 12 && hour < 17) {
+        return "Good afternoon boss";
+    } else if(hour >= 17 && hour < 21) {
+        return "Good evening boss";
+    } else {
+        return "Good night boss";
+    }
+}
+
+function startListening(){
+    if(!speechRecognitionSupported){
+        output.innerHTML = "❌ Voice commands not available";
+        return;
+    }
+    if(isListening) return;
+    
+    speak("hello boss");
+    isListening = true;
+    lastExecutedCommand = "";
+    output.innerHTML = "hello boss";
+    
+    try{
+        recognition.start();
+    } catch(e){
+        console.log("Start error:", e.message);
+        output.innerHTML = "❌ Microphone denied";
+        isListening = false;
+    }
+}
+
+function stopListening(){
+    isListening = false;
+    output.innerHTML = "⏹️ Voice assistant stopped";
+    try{
+        recognition.abort();
+    } catch(e){
+        console.log("Stop error:", e.message);
+    }
+}
+
+recognition.onresult = function(event){
+    // Fast path for final results
+    for(let i = event.resultIndex; i < event.results.length; i++){
+        if(event.results[i].isFinal){
+            const cmd = event.results[i][0].transcript.toLowerCase().trim();
+            if(cmd.length > 0 && cmd !== lastExecutedCommand){
+                lastExecutedCommand = cmd;
+                output.innerHTML = "🗣️ <b>" + cmd + "</b>";
+                processCommand(cmd);
+                return;
+            }
+        }
+    }
+    
+    // Interim feedback
+    if(!isSpeaking){
+        let interim = '';
+        for(let i = event.resultIndex; i < event.results.length; i++){
+            if(!event.results[i].isFinal){
+                interim += event.results[i][0].transcript + ' ';
+            }
+        }
+        if(interim.trim()) output.innerHTML = "🎤 " + interim.trim();
+    }
+};
+
+function processCommand(command){
+    const now = Date.now();
+    if(command === lastExecutedCommand && (now - lastCommandTimestamp) < COMMAND_COOLDOWN){
+        return;
+    }
+    lastCommandTimestamp = now;
+
+    // Personal questions - check these FIRST before any "what is" matchers
+    if(command.includes("who are you") || command.includes("what is your name")){
+        speak("My name is Hina. I am an advanced AI voice assistant designed to help you with web searches, opening applications and websites, checking weather and news, managing your calendar, and much more. I can open over fifty websites and services, from YouTube to GitHub. I have a female voice and I'm here to make your digital life easier. You can control me by voice commands or keyboard shortcuts. What would you like me to help with?");
+        output.innerHTML = "🤖 I'm Hina - an AI Voice Assistant | I can: Search the web, Open apps & websites, Check weather & news, Manage calendar, And more! Ask me anything!";
+        return;
+    }
+    else if(command.includes("help") || command.includes("what can you do") || command.includes("capabilities")){
+        speak("I can open websites, apps, search the web, tell you the time and date, and respond to your commands");
+        output.innerHTML = "ℹ️ I can search, open apps, tell time/date, and more!";
+        return;
+    }
+
+    // Stop listening command
+    else if(command.includes("stop") || command.includes("exit") || command.includes("quit")){
+        speak("Stopping voice assistant");
+        output.innerHTML = "⏹️ Voice assistant stopped";
+        isListening = false;
+        recognition.stop();
+        return;
+    }
+
+    // Search Commands (Google-like)
+    else if(command.includes("search") || command.includes("google") || command.includes("find")){
+        const searchQuery = command.replace(/search|google|find|for|on/gi, '').trim();
+        if(searchQuery.length > 0){
+            speak("Searching for " + searchQuery);
+            openUrl("https://www.google.com/search?q=" + encodeURIComponent(searchQuery));
+            return;
+        }
+    }
+    // Date & Time Commands
+    else if(command.includes("what time") || command.includes("what is the time") || command.includes("tell me the time") || command.includes("current time") || command === "time"){
+        const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+        speak("The current time is " + time);
+        output.innerHTML = "⏰ Current time: " + time;
+        return;
+    }
+    else if(command.includes("what date") || command.includes("what is the date") || command.includes("tell me the date") || command.includes("current date") || command === "date"){
+        const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        speak("Today is " + date);
+        output.innerHTML = "📅 Today: " + date;
+        return;
+    }
+    // Define/Meaning
+    else if(command.includes("define") || command.includes("meaning of") || (command.includes("what is") && !command.includes("current time") && !command.includes("what is the time") && !command.includes("time"))){
+        const word = command.replace(/define|meaning of|what is/gi, '').trim();
+        if(word.length > 0){
+            speak("Looking up " + word);
+            openUrl("https://www.google.com/search?q=define+" + encodeURIComponent(word));
+            return;
+        }
+    }
+    // Calculator
+    else if(command.includes("calculate") || command.includes("multiply") || command.includes("divide") || command.includes("add") || command.includes("subtract")){
+        speak("Opening calculator");
+        openUrl("https://www.google.com/search?q=calculator");
+        return;
+    }
+    // Weather
+    else if(command.includes("weather") || command.includes("temperature") || command.includes("forecast")){
+        speak("Checking weather");
+        openUrl("https://weather.com");
+        return;
+    }
+    // News
+    else if(command.includes("news") || command.includes("headlines")){
+        speak("Opening news");
+        openUrl("https://news.google.com");
+        return;
+    }
+    // Email variations
+    else if(command.includes("email") || command.includes("gmail")){
+        speak("Opening Gmail");
+        openUrl("https://mail.google.com");
+        return;
+    }
+    // Maps variations
+    else if(command.includes("map") || command.includes("location") || command.includes("where")){
+        speak("Opening Maps");
+        openUrl("https://maps.google.com");
+        return;
+    }
+    // Advanced Translation - translate text to any language
+    else if(command.includes("translate")){
+        // Extract text and target language from commands like
+        // "translate hello world to french" or "translate hello into german"
+        const toPattern = /translate\s+(.+?)\s+to\s+([\w-]+)/i;
+        const intoPattern = /translate\s+(.+?)\s+into\s+([\w-]+)/i;
+        let toMatch = command.match(toPattern);
+        let intoMatch = command.match(intoPattern);
+
+        if(!toMatch && !intoMatch){
+            speak("Opening Translator");
+            openUrl("https://translate.google.com");
+            return;
+        }
+
+        const textToTranslate = (toMatch ? toMatch[1] : intoMatch[1]).trim();
+        const targetLanguage = (toMatch ? toMatch[2] : intoMatch[2]).trim();
+        if(textToTranslate.length > 0){
+            speak("Translating to " + targetLanguage);
+            // Use the API-based translator then speak the result; falls back to Google Translate on error
+            translateAndSpeak(textToTranslate, targetLanguage);
+            return;
+        }
+    }
+    // Images
+    else if(command.includes("image") || command.includes("picture") || command.includes("photo")){
+        const imageQuery = command.replace(/image|picture|photo|of/gi, '').trim();
+        if(imageQuery.length > 0){
+            speak("Searching images for " + imageQuery);
+            openUrl("https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(imageQuery));
+            return;
+        }
+    }
+    // Spotify Music Search
+    else if(command.includes("spotify") && (command.includes("play") || command.includes("search"))){
+        const songQuery = command.replace(/play|search|on|spotify/gi, '').trim();
+        if(songQuery.length > 0){
+            speak("Searching for " + songQuery + " on Spotify");
+            openUrl("https://open.spotify.com/search/" + encodeURIComponent(songQuery));
+        }
+        else {
+            speak("Opening Spotify");
+            openUrl("https://open.spotify.com");
+        }
+        return;
+    }
+    // YouTube Video/Movie Search
+    else if(command.includes("youtube") && (command.includes("watch") || command.includes("search") || command.includes("movie") || command.includes("video") || command.includes("song"))){
+        const videoQuery = command.replace(/watch|search|on|youtube|movie|video|song/gi, '').trim();
+        if(videoQuery.length > 0){
+            speak("Searching for " + videoQuery + " on YouTube");
+            openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent(videoQuery));
+        }
+        else {
+            speak("Opening YouTube");
+            openUrl("https://www.youtube.com");
+        }
+        return;
+    }
+    // Generic Play Music (defaults to Spotify)
+    else if((command.includes("play") && (command.includes("song") || command.includes("music") || command.includes("album"))) || (command.includes("search") && command.includes("song"))){
+        const songQuery = command.replace(/play|search|song|music|album|on/gi, '').trim();
+        if(songQuery.length > 0){
+            speak("Searching for " + songQuery + " on Spotify");
+            openUrl("https://open.spotify.com/search/" + encodeURIComponent(songQuery));
+            return;
+        }
+    }
+    // Generic Watch/Search Video (defaults to YouTube)
+    else if((command.includes("watch") && (command.includes("movie") || command.includes("show") || command.includes("film"))) || (command.includes("search") && (command.includes("movie") || command.includes("video")))){
+        const videoQuery = command.replace(/watch|search|movie|show|film|video/gi, '').trim();
+        if(videoQuery.length > 0){
+            speak("Searching for " + videoQuery + " on YouTube");
+            openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent(videoQuery));
+            return;
+        }
+    }
+    // Popular Web Services
+    else if(command.includes("open youtube") || command.includes("youtube")){
+        speak("Opening YouTube");
+        openUrl("https://www.youtube.com");
+        return;
+    }
+    else if(command.includes("open google") || command.includes("go to google")){
+        speak("Opening Google");
+        openUrl("https://www.google.com");
+        return;
+    }
+    else if(command.includes("open chatgpt") || command.includes("open chat gpt")){
+        speak("Opening Chat GPT");
+        openUrl("https://chat.openai.com");
+        return;
+    }
+    else if(command.includes("open github")){
+        speak("Opening GitHub");
+        openUrl("https://www.github.com");
+        return;
+    }
+    else if(command.includes("open gmail")){
+        speak("Opening Gmail");
+        openUrl("https://mail.google.com");
+        return;
+    }
+    else if(command.includes("open facebook")){
+        speak("Opening Facebook");
+        openUrl("https://www.facebook.com");
+        return;
+    }
+    else if(command.includes("open twitter") || command.includes("open x")){
+        speak("Opening Twitter");
+        openUrl("https://www.twitter.com");
+        return;
+    }
+    else if(command.includes("open linkedin")){
+        speak("Opening LinkedIn");
+        openUrl("https://www.linkedin.com");
+        return;
+    }
+    else if(command.includes("open instagram")){
+        speak("Opening Instagram");
+        openUrl("https://www.instagram.com");
+        return;
+    }
+    else if(command.includes("open reddit")){
+        speak("Opening Reddit");
+        openUrl("https://www.reddit.com");
+        return;
+    }
+    else if(command.includes("open wikipedia")){
+        speak("Opening Wikipedia");
+        openUrl("https://www.wikipedia.org");
+        return;
+    }
+    else if(command.includes("open amazon")){
+        speak("Opening Amazon");
+        openUrl("https://www.amazon.com");
+        return;
+    }
+    else if(command.includes("open ebay")){
+        speak("Opening eBay");
+        openUrl("https://www.ebay.com");
+        return;
+    }
+    else if(command.includes("open netflix")){
+        speak("Opening Netflix");
+        openUrl("https://www.netflix.com");
+        return;
+    }
+    else if(command.includes("open maps") || command.includes("open google maps")){
+        speak("Opening Google Maps");
+        openUrl("https://maps.google.com");
+        return;
+    }
+    else if(command.includes("open weather")){
+        speak("Opening Weather");
+        openUrl("https://weather.com");
+        return;
+    }
+    else if(command.includes("open stack overflow")){
+        speak("Opening Stack Overflow");
+        openUrl("https://stackoverflow.com");
+        return;
+    }
+    else if(command.includes("open w3schools")){
+        speak("Opening W3Schools");
+        openUrl("https://www.w3schools.com");
+        return;
+    }
+    else if(command.includes("open twitch")){
+        speak("Opening Twitch");
+        openUrl("https://www.twitch.tv");
+        return;
+    }
+    else if(command.includes("open discord")){
+        speak("Opening Discord");
+        openUrl("https://discord.com");
+        return;
+    }
+    else if(command.includes("open whatsapp")){
+        speak("Opening WhatsApp Web");
+        openUrl("https://web.whatsapp.com");
+        return;
+    }
+    else if(command.includes("open telegram")){
+        speak("Opening Telegram");
+        openUrl("https://web.telegram.org");
+        return;
+    }
+    else if(command.includes("open dev.to") || command.includes("open dev to")){
+        speak("Opening Dev.to");
+        openUrl("https://dev.to");
+        return;
+    }
+    else if(command.includes("open quora")){
+        speak("Opening Quora");
+        openUrl("https://www.quora.com");
+        return;
+    }
+    else if(command.includes("open pinterest")){
+        speak("Opening Pinterest");
+        openUrl("https://www.pinterest.com");
+        return;
+    }
+    else if(command.includes("open airbnb")){
+        speak("Opening Airbnb");
+        openUrl("https://www.airbnb.com");
+        return;
+    }
+    else if(command.includes("open booking")){
+        speak("Opening Booking");
+        openUrl("https://www.booking.com");
+        return;
+    }
+    // YouTube variations
+    else if(command.includes("watch") || command.includes("play video")){
+        const videoQuery = command.replace(/watch|play|video/gi, '').trim();
+        if(videoQuery.length > 0){
+            speak("Searching video for " + videoQuery);
+            openUrl("https://www.youtube.com/results?search_query=" + encodeURIComponent(videoQuery));
+            return;
+        }
+    }
+    // Social Media variations
+    else if(command.includes("facebook") || command.includes("fb")){
+        speak("Opening Facebook");
+        openUrl("https://www.facebook.com");
+        return;
+    }
+    else if(command.includes("twitter") || command.includes("x.com") || command.includes("tweet")){
+        speak("Opening Twitter");
+        openUrl("https://www.twitter.com");
+        return;
+    }
+    else if(command.includes("instagram") || command.includes("insta")){
+        speak("Opening Instagram");
+        openUrl("https://www.instagram.com");
+        return;
+    }
+    else if(command.includes("reddit")){
+        speak("Opening Reddit");
+        openUrl("https://www.reddit.com");
+        return;
+    }
+    // Productivity apps
+    else if(command.includes("drive") || command.includes("google drive")){
+        speak("Opening Google Drive");
+        openUrl("https://drive.google.com");
+        return;
+    }
+    else if(command.includes("sheets") || command.includes("spreadsheet")){
+        speak("Opening Google Sheets");
+        openUrl("https://sheets.google.com");
+        return;
+    }
+    else if(command.includes("docs") || command.includes("document")){
+        speak("Opening Google Docs");
+        openUrl("https://docs.google.com");
+        return;
+    }
+    else if(command.includes("calendar")){
+        speak("Opening Google Calendar");
+        openUrl("https://calendar.google.com");
+        return;
+    }
+
+    // Windows System Apps & Settings
+    else if(command.includes("open settings")){
+        speak("Opening Settings");
+        window.open("ms-settings:","_blank");
+        return;
+    }
+    else if(command.includes("open task manager")){
+        speak("Opening Task Manager");
+        try{
+            window.open("taskmgr.exe");
+        }catch(e){
+            output.innerHTML = "⚙️ Task Manager (Administrative access may be required)";
+        }
+        return;
+    }
+    else if(command.includes("open calculator")){
+        speak("Opening Calculator");
+        showToast("Calculator command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open notepad")){
+        speak("Opening Notepad");
+        showToast("Notepad command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open wordpad")){
+        speak("Opening WordPad");
+        showToast("WordPad command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open paint")){
+        speak("Opening Paint");
+        showToast("Paint command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open command prompt") || command.includes("open cmd")){
+        speak("Opening Command Prompt");
+        showToast("Command Prompt command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open powershell")){
+        speak("Opening PowerShell");
+        showToast("PowerShell command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open control panel")){
+        speak("Opening Control Panel");
+        showToast("Control Panel command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open file explorer") || command.includes("open files")){
+        speak("Opening File Explorer");
+        showToast("File Explorer command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open device manager")){
+        speak("Opening Device Manager");
+        showToast("Device Manager command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open disk management")){
+        speak("Opening Disk Management");
+        showToast("Disk Management command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open system information")){
+        speak("Opening System Information");
+        showToast("System Information command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open event viewer")){
+        speak("Opening Event Viewer");
+        showToast("Event Viewer command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open services")){
+        speak("Opening Services");
+        showToast("Services command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open registry") || command.includes("open regedit")){
+        speak("Opening Registry Editor");
+        showToast("Registry Editor command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open defender") || command.includes("open windows defender")){
+        speak("Opening Windows Defender");
+        showToast("Windows Defender command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open recycle bin")){
+        speak("Opening Recycle Bin");
+        showToast("Recycle Bin command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open voice recorder")){
+        speak("Opening Voice Recorder");
+        showToast("Voice Recorder command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open photos")){
+        speak("Opening Photos");
+        showToast("Photos command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open calendar")){
+        speak("Opening Calendar");
+        showToast("Calendar command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open clock") || command.includes("open alarm")){
+        speak("Opening Clock");
+        showToast("Clock command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open camera")){
+        speak("Opening Camera");
+        showToast("Camera command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open network settings")){
+        speak("Opening Network Settings");
+        showToast("Network Settings command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open display settings")){
+        speak("Opening Display Settings");
+        showToast("Display Settings command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open sound settings")){
+        speak("Opening Sound Settings");
+        showToast("Sound Settings command received (cannot launch locally).");
+        return;
+    }
+    else if(command.includes("open update settings")){
+        speak("Opening Update Settings");
+        showToast("Update Settings command received (cannot launch locally).");
+        return;
+    }
+
+    // Date & Time Commands
+    else if(command.includes("what time") || command.includes("what is the time") || command.includes("tell me the time") || command.includes("time")){
+        const time = new Date().toLocaleTimeString();
+        speak("The current time is " + time);
+        output.innerHTML = "⏰ Current time: " + time;
+        return;
+    }
+    else if(command.includes("what date") || command.includes("what is the date") || command.includes("tell me the date") || command.includes("date")){
+        const date = new Date().toLocaleDateString();
+        speak("Today is " + date);
+        output.innerHTML = "📅 Today: " + date;
+        return;
+    }
+
+    // Time-based Greetings
+    else if(command.includes("good morning")){
+        speak("Good morning boss");
+        output.innerHTML = "👋 Good morning!";
+        return;
+    }
+    else if(command.includes("good afternoon")){
+        speak("Good afternoon boss");
+        output.innerHTML = "👋 Good afternoon!";
+        return;
+    }
+    else if(command.includes("good evening")){
+        speak("Good evening boss");
+        output.innerHTML = "👋 Good evening!";
+        return;
+    }
+    else if(command.includes("good night")){
+        speak("Good night boss");
+        output.innerHTML = "👋 Good night!";
+        return;
+    }
+    // Fun responses
+    else if(command.includes("thank you") || command.includes("thanks")){
+        speak("You are welcome boss");
+        output.innerHTML = "😊 You're welcome!";
+        return;
+    }
+    else if(command.includes("how are you") || command.includes("how do you do")){
+        speak("I am doing great, thanks for asking");
+        output.innerHTML = "😊 I'm doing great!";
+        return;
+    }
+
+    // Only show unrecognized commands
+    if(command.length > 3){
+        output.innerHTML = "❓ Command not recognized. Try: Open YouTube, Google, Settings, Task Manager, Calendar, etc.";
+    }
+}
+
+recognition.onerror = (event)=>{
+    if(event.error === 'aborted') return;
+    
+    // Only show critical errors
+    if(event.error === 'not-allowed' || event.error === 'audio-capture'){
+        output.innerHTML = "❌ " + event.error.toUpperCase();
+        return;
+    }
+    
+    // Recover instantly for other errors
+    if(isListening && !isSpeaking){
+        try {
+            recognition.start();
+        } catch(e) {
+            setTimeout(()=>{ if(isListening && !isSpeaking) recognition.start(); }, 10);
+        }
+    }
+};
+
+recognition.onend = ()=>{
+    // Instant restart for continuous hearing
+    if(isListening && !isSpeaking){
+        try{
+            recognition.start();
+        } catch(e) {
+            setTimeout(()=>{
+                if(isListening && !isSpeaking) recognition.start();
+            }, 10);
+        }
+    }
+};
+
+// Clap Detection Setup
+let audioContext = null;
+let analyser = null;
+let microphone = null;
+let clapDetectionActive = false;
+let lastClapTime = 0;
+const CLAP_COOLDOWN = 1000; // ms between claps to avoid multiple triggers
+
+async function initClapDetection(){
+    if(clapDetectionActive) return;
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        microphone = audioContext.createMediaStreamAudioSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        microphone.connect(analyser);
+        
+        clapDetectionActive = true;
+        detectClap();
+    } catch(e) {
+        console.log("Clap detection not available:", e.message);
+    }
+}
+
+function detectClap(){
+    if(!clapDetectionActive || !analyser) return;
+    
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    function checkAudio(){
+        requestAnimationFrame(checkAudio);
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average frequency magnitude
+        let sum = 0;
+        for(let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        
+        // Check for sudden loud sound (clap threshold)
+        if(average > 120) {
+            const now = Date.now();
+            if(now - lastClapTime > CLAP_COOLDOWN) {
+                lastClapTime = now;
+                handleClap();
+            }
+        }
+    }
+    checkAudio();
+}
+
+function handleClap(){
+    const greeting = getTimeGreeting();
+    speak(greeting);
+    output.innerHTML = "👋 " + greeting;
+    
+    // Add visual feedback animation
+    output.classList.add('clap-detected');
+    setTimeout(()=>{
+        output.classList.remove('clap-detected');
+    }, 500);
+}
+
+// Initialize clap detection on load
+try {
+    window.addEventListener('load', ()=>{
+        setTimeout(initClapDetection, 1000);
+    });
+} catch(e) {
+    console.log("Could not initialize clap detection:", e);
+}
+
+// Three.js scene setup (optional - won't break if it fails)
+let scene, camera, renderer, cube;
+function initThree(){
+  try {
+    if(typeof THREE === 'undefined') {
+        console.log("Three.js not loaded, skipping 3D animation");
+        return;
+    }
+    const canvas = document.getElementById('scene');
+    if(!canvas) return;
+    renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(45, canvas.clientWidth/canvas.clientHeight, 0.1, 100);
+    camera.position.z = 5;
+    const geometry = new THREE.BoxGeometry(1,1,1);
+    const material = new THREE.MeshStandardMaterial({color: 0x00ffff});
+    cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+    const light = new THREE.DirectionalLight(0xffffff,1);
+    light.position.set(5,5,5);
+    scene.add(light);
+    animate();
+  } catch(error) {
+    console.log("Three.js initialization failed (optional feature):", error);
+  }
+}
+function animate(){
+  try {
+    if(!cube || !renderer || !scene || !camera) return;
+    requestAnimationFrame(animate);
+    cube.rotation.x += 0.01;
+    cube.rotation.y += 0.01;
+    renderer.render(scene, camera);
+  } catch(error) {
+    console.log("Animation error (non-critical):", error);
+  }
+}
+try {
+  window.addEventListener('load', initThree);
+} catch(error) {
+  console.log("Could not attach load listener for Three.js");
+}
+
+// Toast feedback
+function showToast(message){
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(()=>{ toast.remove(); }, 3000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (event)=>{
+  // Don't intercept keyboard events when typing in the text input
+  if(event.target.id === 'commandInput') return;
+  
+  if(event.key.toLowerCase() === 's' || event.key === 'Enter') {
+    event.preventDefault();
+    if(!isListening) startListening();
+  }
+  if(event.key === 'Escape' || event.key === ' ') {
+    event.preventDefault();
+    if(isListening) stopListening();
+  }
+});
+
+// Text input command handler
+try {
+  const commandInput = document.getElementById('commandInput');
+  if(commandInput) {
+    commandInput.addEventListener('keypress', function(event){
+      if(event.key === 'Enter') {
+        const command = this.value.trim().toLowerCase();
+        if(command.length > 0) {
+          output.innerHTML = "🗣 You said: " + command;
+          processCommand(command);
+          this.value = '';
+        }
+      }
+    });
+  }
+} catch(error) {
+  console.log("Could not attach text input listener:", error);
+}
+
+// Boss mode start
+function bossModeStart(){
+  speak("hello boss");
+  output.innerHTML = "hello boss";
+}
+</script>
+
+</body>
+</html>
