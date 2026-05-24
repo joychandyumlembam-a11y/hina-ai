@@ -17,14 +17,14 @@
                 <div class="ring ring-1"></div>
                 <div class="ring ring-2"></div>
                 <div class="ring ring-3"></div>
-                <div class="core" role="button" tabindex="0" aria-label="Start Hina" onclick="startListening()" onkeydown="if(event.key==='Enter' || event.key===' ') startListening()">
+                <div class="core" role="button" tabindex="0" aria-label="Hina voice assistant">
                     <div class="core-inner">
                         <div class="core-label">Hina</div>
                         <div class="core-status" id="coreStatus">Ready</div>
                     </div>
                 </div>
             </div>
-            <div class="assistant-output" id="output">Tap Hina or press S to start voice commands.</div>
+            <div class="assistant-output" id="output">Initializing microphone and listening for commands...</div>
             <div class="command-box">
                 <input id="commandInput" type="text" placeholder="Type a command and press Enter..." aria-label="Text command input">
             </div>
@@ -36,16 +36,49 @@
 <script>
 
 // Load voices when available
+let availableVoices = window.speechSynthesis.getVoices();
+let voicesLoaded = availableVoices && availableVoices.length > 0;
+let preferredVoice = null;
+
+function refreshAvailableVoices(){
+    availableVoices = window.speechSynthesis.getVoices();
+    voicesLoaded = availableVoices && availableVoices.length > 0;
+    preferredVoice = getPreferredFemaleVoice('en-US');
+}
+
 window.speechSynthesis.onvoiceschanged = ()=>{
-    window.speechSynthesis.getVoices();
+    refreshAvailableVoices();
 };
 
+function getPreferredFemaleVoice(langCode){
+    let voices = availableVoices.length ? availableVoices : window.speechSynthesis.getVoices();
+    if(!voices || voices.length === 0) return null;
+    const femaleNamePattern = /(zira|samantha|karen|susan|gina|amelia|female|woman|victoria|audrey|lara|zoe|ariel|vicki|kendra|carly|olivia|emily|linda|anna|natalie|paula|catherine|maya|alice|claire|helena|fiona|mia|lena|jade|ella|alloy|nora|sophie|violet|hannah|jessica|grace|sky|lily|rose|ruby|sarah|meg|alisa|zoey)/i;
+    return voices.find(v => v.lang && langCode && v.lang.toLowerCase().startsWith(langCode.toLowerCase()) && femaleNamePattern.test(v.name || '')) ||
+           voices.find(v => langCode && v.lang && v.lang.toLowerCase().startsWith(langCode.toLowerCase())) ||
+           voices.find(v => femaleNamePattern.test(v.name || '')) ||
+           voices.find(v => femaleNamePattern.test(v.voiceURI || '')) ||
+           voices[0];
+}
+
+refreshAvailableVoices();
+
 const output = document.getElementById("output");
+const coreStatus = document.getElementById("coreStatus");
 
 let isSpeaking = false;
 
 function speak(text){
     if(!text || text.trim().length === 0) return;
+
+    // If voices are not loaded yet, wait briefly so the browser can provide female voices.
+    if(!voicesLoaded){
+        refreshAvailableVoices();
+        if(!voicesLoaded){
+            setTimeout(()=> speak(text), 120);
+            return;
+        }
+    }
     
     // Pause recognition while speaking to avoid capturing our own speech
     let wasListening = isListening;
@@ -60,16 +93,10 @@ function speak(text){
     const speech = new SpeechSynthesisUtterance(text);
     speech.lang = "en-US";
     speech.volume = 1;
-    speech.rate = 1.0;  // Normal speed for clarity
-    speech.pitch = 1.8;  // Slightly higher pitch for naturalness
+    speech.rate = 1.0;
+    speech.pitch = 1.0;
     
-    let voices = window.speechSynthesis.getVoices();
-    let femaleVoice = voices.find(v => v.name.toLowerCase().includes('zira')) ||
-                      voices.find(v => v.name.toLowerCase().includes('female')) ||
-                      voices.find(v => v.name.toLowerCase().includes('woman')) ||
-                      voices.find(v => v.name.toLowerCase().includes('victoria')) ||
-                      voices.find(v => v.name.toLowerCase().includes('anna')) ||
-                      (voices.length > 1 ? voices[1] : voices[0]);
+    let femaleVoice = preferredVoice || getPreferredFemaleVoice('en-US');
     if(femaleVoice) speech.voice = femaleVoice;
     
     isSpeaking = true;
@@ -111,16 +138,15 @@ function speak(text){
 // Speak text with a specific language code (if available)
 function speakText(text, langCode){
     if(!text || text.trim().length === 0) return;
+    if(!voicesLoaded){
+        refreshAvailableVoices();
+    }
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = langCode || 'en-US';
     utter.volume = 1;
     utter.rate = 1.0;
     utter.pitch = 1.0;
-    let voices = window.speechSynthesis.getVoices();
-    // Try to pick a voice that matches the language code
-    let voice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith((utter.lang||'').toLowerCase())) ||
-                voices.find(v => v.name.toLowerCase().includes('female')) ||
-                voices[0];
+    let voice = preferredVoice || getPreferredFemaleVoice(utter.lang || 'en-US');
     if(voice) utter.voice = voice;
     try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(utter); }catch(e){ console.error('speakText error', e); }
 }
@@ -214,16 +240,17 @@ function startListening(){
     }
     if(isListening) return;
     
-    speak("hello boss");
     isListening = true;
     lastExecutedCommand = "";
-    output.innerHTML = "hello boss";
+    output.innerHTML = "🎤 Listening for voice commands...";
+    coreStatus.innerText = "Listening";
     
     try{
         recognition.start();
     } catch(e){
         console.log("Start error:", e.message);
         output.innerHTML = "❌ Microphone denied";
+        coreStatus.innerText = "Error";
         isListening = false;
     }
 }
@@ -237,6 +264,13 @@ function stopListening(){
         console.log("Stop error:", e.message);
     }
 }
+
+recognition.onstart = function(){
+    output.innerHTML = "🎤 Listening for voice commands...";
+    if(document.getElementById('coreStatus')){
+        document.getElementById('coreStatus').innerText = 'Listening';
+    }
+};
 
 recognition.onresult = function(event){
     // Fast path for final results
@@ -280,6 +314,25 @@ function processCommand(command){
     else if(command.includes("help") || command.includes("what can you do") || command.includes("capabilities")){
         speak("I can open websites, apps, search the web, tell you the time and date, and respond to your commands");
         output.innerHTML = "ℹ️ I can search, open apps, tell time/date, and more!";
+        return;
+    }
+
+    // Hello/Greeting Command
+    else if(command === "hello" || command === "hi" || command === "hey"){
+        const hour = new Date().getHours();
+        let timeGreeting = "";
+        if(hour >= 5 && hour < 12) {
+            timeGreeting = "good morning";
+        } else if(hour >= 12 && hour < 17) {
+            timeGreeting = "good afternoon";
+        } else if(hour >= 17 && hour < 21) {
+            timeGreeting = "good evening";
+        } else {
+            timeGreeting = "good night";
+        }
+        const greeting = "hello boss " + timeGreeting;
+        speak(greeting);
+        output.innerHTML = "👋 " + greeting;
         return;
     }
 
@@ -917,15 +970,18 @@ function detectClap(){
             const now = Date.now();
             if(now - lastClapTime > CLAP_COOLDOWN) {
                 lastClapTime = now;
-                handleClap();
+                handClap();
             }
         }
     }
     checkAudio();
 }
 
-function handleClap(){
-    const greeting = getTimeGreeting();
+function handClap(){
+    const greeting = isListening ? "hello boss" : "welcome back boss";
+    if(!isListening){
+        startListening();
+    }
     speak(greeting);
     output.innerHTML = "👋 " + greeting;
     
@@ -936,13 +992,15 @@ function handleClap(){
     }, 500);
 }
 
-// Initialize clap detection on load
+// Initialize clap detection and auto-listening on load
 try {
     window.addEventListener('load', ()=>{
+        startListening();
         setTimeout(initClapDetection, 1000);
+        initThree();
     });
 } catch(e) {
-    console.log("Could not initialize clap detection:", e);
+    console.log("Could not initialize load listeners:", e);
 }
 
 // Three.js scene setup (optional - won't break if it fails)
@@ -982,11 +1040,6 @@ function animate(){
   } catch(error) {
     console.log("Animation error (non-critical):", error);
   }
-}
-try {
-  window.addEventListener('load', initThree);
-} catch(error) {
-  console.log("Could not attach load listener for Three.js");
 }
 
 // Toast feedback
