@@ -10,45 +10,22 @@
 
 <body>
     <div class="background-animation"></div>
-    
-    <div class="header">
-        <h2>Welcome to Hina</h2>
-    </div>
 
     <div class="main-container">
-        <!-- Hina Avatar Section -->
-        <div class="hina-section">
-            <div class="avatar-card">
-                <div class="avatar">👩</div>
-                <div class="avatar-name">Hina</div>
-                <div class="avatar-status">Ready to assist</div>
-                <div class="wave">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+        <div class="jarvis-center">
+            <div class="jarvis" role="img" aria-label="Jarvis circular interface">
+                <div class="ring ring-1"></div>
+                <div class="ring ring-2"></div>
+                <div class="ring ring-3"></div>
+                <div class="core" role="button" tabindex="0" aria-label="Start Hina" onclick="startListening()" onkeydown="if(event.key==='Enter' || event.key===' ') startListening()">
+                    <div class="core-inner">
+                        <div class="core-label">Hina</div>
+                        <div class="core-status" id="coreStatus">Ready</div>
+                    </div>
                 </div>
             </div>
+            <div class="jarvis-hint">Say "Hey Hina" or click the center to start</div>
         </div>
-
-        <!-- Info Section -->
-        <div class="info-section">
-            <div class="output" id="output">
-                🎧 Ready to listen to your commands...
-            </div>
-            <div class="voice-support-message" id="voiceSupportMessage"></div>
-
-            <div class="button-container">
-                <button onclick="startListening()" id="listenBtn">🎤 Start Listening (Press S)</button>
-                <button onclick="stopListening()" id="stopBtn">⏹️ Stop (Press Esc)</button>
-                <input type="text" id="commandInput" placeholder="Type a command here...">
-            </div>
-        </div>
-    </div>
-
-    <div class="footer">
-        <p>Hina - AI Voice Assistant | Full HD Display | Female Voice | 2026</p>
     </div>
 
 <canvas id="scene" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1; width: 400px; height: 400px; pointer-events: none;" aria-hidden="true"></canvas>
