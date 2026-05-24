@@ -24,7 +24,7 @@
                     </div>
                 </div>
             </div>
-            <div class="assistant-output" id="output">Initializing microphone and listening for commands...</div>
+            <div class="assistant-output" id="output"></div>
             <div class="command-box">
                 <input id="commandInput" type="text" placeholder="Type a command and press Enter..." aria-label="Text command input">
             </div>
@@ -242,7 +242,6 @@ function startListening(){
     
     isListening = true;
     lastExecutedCommand = "";
-    output.innerHTML = "🎤 Listening for voice commands...";
     coreStatus.innerText = "Listening";
     
     try{
@@ -266,7 +265,6 @@ function stopListening(){
 }
 
 recognition.onstart = function(){
-    output.innerHTML = "🎤 Listening for voice commands...";
     if(document.getElementById('coreStatus')){
         document.getElementById('coreStatus').innerText = 'Listening';
     }
@@ -279,7 +277,6 @@ recognition.onresult = function(event){
             const cmd = event.results[i][0].transcript.toLowerCase().trim();
             if(cmd.length > 0 && cmd !== lastExecutedCommand){
                 lastExecutedCommand = cmd;
-                output.innerHTML = "🗣️ <b>" + cmd + "</b>";
                 processCommand(cmd);
                 return;
             }
@@ -294,7 +291,7 @@ recognition.onresult = function(event){
                 interim += event.results[i][0].transcript + ' ';
             }
         }
-        if(interim.trim()) output.innerHTML = "🎤 " + interim.trim();
+        if(interim.trim());
     }
 };
 
@@ -308,12 +305,10 @@ function processCommand(command){
     // Personal questions - check these FIRST before any "what is" matchers
     if(command.includes("who are you") || command.includes("what is your name")){
         speak("My name is Hina. I am an advanced AI voice assistant designed to help you with web searches, opening applications and websites, checking weather and news, managing your calendar, and much more. I can open over fifty websites and services, from YouTube to GitHub. I have a female voice and I'm here to make your digital life easier. You can control me by voice commands or keyboard shortcuts. What would you like me to help with?");
-        output.innerHTML = "🤖 I'm Hina - an AI Voice Assistant | I can: Search the web, Open apps & websites, Check weather & news, Manage calendar, And more! Ask me anything!";
         return;
     }
     else if(command.includes("help") || command.includes("what can you do") || command.includes("capabilities")){
         speak("I can open websites, apps, search the web, tell you the time and date, and respond to your commands");
-        output.innerHTML = "ℹ️ I can search, open apps, tell time/date, and more!";
         return;
     }
 
@@ -330,9 +325,8 @@ function processCommand(command){
         } else {
             timeGreeting = "good night";
         }
-        const greeting = "hello boss " + timeGreeting;
+        const greeting = "Hello! " + timeGreeting + " boss";
         speak(greeting);
-        output.innerHTML = "👋 " + greeting;
         return;
     }
 
@@ -350,7 +344,6 @@ function processCommand(command){
         ];
         const randomFarewell = farewellResponses[Math.floor(Math.random() * farewellResponses.length)];
         speak(randomFarewell);
-        output.innerHTML = "👋 " + randomFarewell;
         isListening = false;
         setTimeout(()=>{
             try{
@@ -384,13 +377,11 @@ function processCommand(command){
     else if(command.includes("what time") || command.includes("what is the time") || command.includes("tell me the time") || command.includes("current time") || command === "time"){
         const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
         speak("The current time is " + time);
-        output.innerHTML = "⏰ Current time: " + time;
         return;
     }
     else if(command.includes("what date") || command.includes("what is the date") || command.includes("tell me the date") || command.includes("current date") || command === "date"){
         const date = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         speak("Today is " + date);
-        output.innerHTML = "📅 Today: " + date;
         return;
     }
     // Define/Meaning
@@ -708,7 +699,6 @@ function processCommand(command){
         try{
             window.open("taskmgr.exe");
         }catch(e){
-            output.innerHTML = "⚙️ Task Manager (Administrative access may be required)";
         }
         return;
     }
@@ -842,52 +832,44 @@ function processCommand(command){
     else if(command.includes("what time") || command.includes("what is the time") || command.includes("tell me the time") || command.includes("time")){
         const time = new Date().toLocaleTimeString();
         speak("The current time is " + time);
-        output.innerHTML = "⏰ Current time: " + time;
         return;
     }
     else if(command.includes("what date") || command.includes("what is the date") || command.includes("tell me the date") || command.includes("date")){
         const date = new Date().toLocaleDateString();
         speak("Today is " + date);
-        output.innerHTML = "📅 Today: " + date;
         return;
     }
 
     // Time-based Greetings
     else if(command.includes("good morning")){
-        speak("Good morning boss");
-        output.innerHTML = "👋 Good morning!";
+        speak("Hello! good morning boss");
         return;
     }
     else if(command.includes("good afternoon")){
-        speak("Good afternoon boss");
-        output.innerHTML = "👋 Good afternoon!";
+        speak("Hello! good afternoon boss");
         return;
     }
     else if(command.includes("good evening")){
-        speak("Good evening boss");
-        output.innerHTML = "👋 Good evening!";
+        speak("Hello! good evening boss");
         return;
     }
     else if(command.includes("good night")){
-        speak("Good night boss");
-        output.innerHTML = "👋 Good night!";
+        speak("Hello! good night boss");
         return;
     }
     // Fun responses
     else if(command.includes("thank you") || command.includes("thanks")){
         speak("You are welcome boss");
-        output.innerHTML = "😊 You're welcome!";
         return;
     }
     else if(command.includes("how are you") || command.includes("how do you do")){
         speak("I am doing great, thanks for asking");
-        output.innerHTML = "😊 I'm doing great!";
         return;
     }
 
     // Only show unrecognized commands
     if(command.length > 3){
-        output.innerHTML = "❓ Command not recognized. Try: Open YouTube, Google, Settings, Task Manager, Calendar, etc.";
+        output.innerHTML = "";
     }
 }
 
@@ -978,12 +960,22 @@ function detectClap(){
 }
 
 function handClap(){
-    const greeting = isListening ? "hello boss" : "welcome back boss";
+    const hour = new Date().getHours();
+    let timeGreeting = "";
+    if(hour >= 5 && hour < 12) {
+        timeGreeting = "good morning";
+    } else if(hour >= 12 && hour < 17) {
+        timeGreeting = "good afternoon";
+    } else if(hour >= 17 && hour < 21) {
+        timeGreeting = "good evening";
+    } else {
+        timeGreeting = "good night";
+    }
+    const greeting = isListening ? ("Hello! " + timeGreeting + " boss") : "welcome back boss";
     if(!isListening){
         startListening();
     }
     speak(greeting);
-    output.innerHTML = "👋 " + greeting;
     
     // Add visual feedback animation
     output.classList.add('clap-detected');
@@ -1074,7 +1066,6 @@ try {
       if(event.key === 'Enter') {
         const command = this.value.trim().toLowerCase();
         if(command.length > 0) {
-          output.innerHTML = "🗣 You said: " + command;
           processCommand(command);
           this.value = '';
         }
@@ -1087,8 +1078,19 @@ try {
 
 // Boss mode start
 function bossModeStart(){
-  speak("hello boss");
-  output.innerHTML = "hello boss";
+  const hour = new Date().getHours();
+  let timeGreeting = "";
+  if(hour >= 5 && hour < 12) {
+    timeGreeting = "good morning";
+  } else if(hour >= 12 && hour < 17) {
+    timeGreeting = "good afternoon";
+  } else if(hour >= 17 && hour < 21) {
+    timeGreeting = "good evening";
+  } else {
+    timeGreeting = "good night";
+  }
+  const greeting = "Hello! " + timeGreeting + " boss";
+  speak(greeting);
 }
 </script>
 
